@@ -182,7 +182,7 @@ public class CharacterController2D : MonoBehaviour {
         isGrounded = groundCollider != null;
 
         if (!wasGrounded && isGrounded) groundEvent?.Invoke();
-        isFalling = wasGrounded && !isGrounded && inputVelocity.y < 0;
+        isFalling = !isGrounded && inputVelocity.y < 0;
 
         return groundCollider;
     }
