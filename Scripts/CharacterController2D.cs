@@ -64,6 +64,7 @@ public class CharacterController2D : MonoBehaviour {
 
     private void Update() {
         horizontalInput = Input.GetAxis("Horizontal"); // Get horizontal movement input
+        if (horizontalInput < 0.1f && horizontalInput > -0.1f) horizontalInput = 0; // Input deadzones
 
         if (Input.GetButtonDown("Jump")) jumpTimer = jumpReminderTime; // Register jump button pressed
         jumpTimer -= Time.deltaTime; // Reduce jump timer
@@ -105,7 +106,7 @@ public class CharacterController2D : MonoBehaviour {
         if (jumpTimer > 0) Jump(); // Jump
         
         inputVelocity.x = horizontalInput * GetMovementSpeed(); // Horizontal movement
-        walkSpeed = inputVelocity.x;
+        walkSpeed = (velocity.x == 0) ? 0 : horizontalInput; // No walk speed when running at wall
 
         ApplyTopEdgeForce(); // Top edge detection (AFTER inputVelocity.x set)
         
@@ -160,8 +161,6 @@ public class CharacterController2D : MonoBehaviour {
     Vector2 lastPos = Vector2.zero;
 
     private float GetMovementSpeed() {
-        if (horizontalInput < 0.1f && horizontalInput > -0.1f) return 0; // Input deadzones
-
         if (isGrounded) return speedOnGround;
 
         return Mathf.Lerp(apexSpeed, speedOnGround, Mathf.Abs(inputVelocity.y) / apexSpeedThreshold); // Jump apex -> More Speed
