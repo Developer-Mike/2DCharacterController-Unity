@@ -14,6 +14,7 @@ public class CharacterController2D : MonoBehaviour {
     public Vector2 groundcheckBoxSize;
 
     [Header("Movement")]
+    public bool canMove = true;
     public float speedOnGround = 5;
     public float apexSpeed = 7;
     public float apexSpeedThreshold = 10;
@@ -63,19 +64,15 @@ public class CharacterController2D : MonoBehaviour {
     }
 
     private void Update() {
-        horizontalInput = Input.GetAxis("Horizontal"); // Get horizontal movement input
-        if (horizontalInput < 0.1f && horizontalInput > -0.1f) horizontalInput = 0; // Input deadzones
-
-        if (Input.GetButtonDown("Jump")) jumpTimer = jumpReminderTime; // Register jump button pressed
         jumpTimer -= Time.deltaTime; // Reduce jump timer
 
         if (canDash) {
-            if (Input.GetKeyDown(KeyCode.C)) Dash();
-
             if (dashCooldownTimer > 0 && dashCooldownTimer - Time.deltaTime <= 0) {
                 if (dashesLeft > 0) dashRechargedEvent?.Invoke();
                 else notifyDashRechargeOnGrounded = true;
             }
+
+            dashTimer -= Time.deltaTime;
             dashCooldownTimer -= Time.deltaTime;
         }
     }
@@ -103,10 +100,12 @@ public class CharacterController2D : MonoBehaviour {
         
         ApplyStepForce(); // Apply step force (AFTER Gravity)
 
-        if (jumpTimer > 0) Jump(); // Jump
-        
-        inputVelocity.x = horizontalInput * GetMovementSpeed(); // Horizontal movement
-        walkSpeed = (velocity.x == 0) ? 0 : horizontalInput; // No walk speed when running at wall
+        if (canMove && jumpTimer > 0) Jump(); // Jump
+        if (canMove && canDash && dashTimer > 0) Dash(); // Dash
+
+        inputVelocity.x = canMove ? (movementInput.x * GetMovementSpeed()) : 0; // Horizontal movement
+        if (movementInput.x < 0.1f && movementInput.x > -0.1f) movementInput.x = 0; // Input deadzones
+        walkSpeed = (canMove && velocity.x != 0) ? movementInput.x : 0; // No walk speed when running at wall or cant move
 
         ApplyTopEdgeForce(); // Top edge detection (AFTER inputVelocity.x set)
         
@@ -141,6 +140,13 @@ public class CharacterController2D : MonoBehaviour {
         DrawTopEdgeDebug();
     }
 
+    #region Input
+    public Vector2 movementInput;
+    
+    public void OnJumpButton() => jumpTimer = jumpReminderTime;
+    public void OnDashButton() => dashTimer = dashReminderTime;
+    #endregion
+
     #region Events and public values
     [HideInInspector] public float walkSpeed { get; private set; } = 0;
     [HideInInspector] public bool isFalling { get; private set; } = false;
@@ -155,7 +161,6 @@ public class CharacterController2D : MonoBehaviour {
     #endregion
 
     #region Movement
-    float horizontalInput = 0;
     Vector2 inputVelocity = Vector2.zero;
 
     Vector2 lastPos = Vector2.zero;
@@ -169,6 +174,11 @@ public class CharacterController2D : MonoBehaviour {
     private void CalculateRealVelocity() {
         velocity = ((Vector2)transform.position - lastPos) / Time.fixedDeltaTime;
         lastPos = transform.position;
+    }
+
+    public void ResetVelocity() {
+        inputVelocity = Vector2.zero;
+        rb.velocity = Vector2.zero;
     }
     #endregion
 
@@ -216,15 +226,18 @@ public class CharacterController2D : MonoBehaviour {
 
     #region Dash
     bool notifyDashRechargeOnGrounded = false;
+    const float dashReminderTime = 0.1f;
+    float dashTimer = 0;
     float dashCooldownTimer = 0;
     float dashesLeft = 0;
 
     private void Dash() {
         if (dashCooldownTimer > 0 || dashesLeft <= 0) return;
-        dashCooldownTimer = dashCooldown;
         dashesLeft--;
+        dashTimer = 0;
+        dashCooldownTimer = dashCooldown;
 
-        Vector2 dashDirection = new Vector2(horizontalInput, Input.GetAxis("Vertical")).normalized;
+        Vector2 dashDirection = movementInput.normalized;
         if (dashDirection == Vector2.zero) dashDirection = (transform.localScale.x > 0) ? Vector2.right : Vector2.left;
 
         inputVelocity = Vector2.zero;
@@ -382,9 +395,9 @@ public class CharacterController2D : MonoBehaviour {
     }
 
     private void FaceInRightDirection() {
-        if (horizontalInput == 0) return;
+        if (movementInput.x == 0) return;
 
-        if ((transform.localScale.x > 0) != (horizontalInput > 0)) {
+        if ((transform.localScale.x > 0) != (movementInput.x > 0)) {
             transform.localScale = new Vector3(-transform.localScale.x, transform.localScale.y, transform.localScale.z);
         }
     }
