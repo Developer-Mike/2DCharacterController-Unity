@@ -15,6 +15,9 @@ public class CharacterController2D : MonoBehaviour {
 
     [Header("Movement")]
     public bool canMove = true;
+    public bool instantDirectionChange = true;
+    public float movementAcceleration = 5;
+    public float movementDeceleration = 7.5f;
     public float speedOnGround = 5;
     public float apexSpeed = 7;
     public float apexSpeedThreshold = 10;
@@ -64,6 +67,8 @@ public class CharacterController2D : MonoBehaviour {
     }
 
     private void Update() {
+        SmoothInput(); // Refresh smooth input
+
         jumpTimer -= Time.deltaTime; // Reduce jump timer
 
         if (canDash) {
@@ -102,10 +107,9 @@ public class CharacterController2D : MonoBehaviour {
 
         if (canMove && jumpTimer > 0) Jump(); // Jump
         if (canMove && canDash && dashTimer > 0) Dash(); // Dash
-
-        inputVelocity.x = canMove ? (movementInput.x * GetMovementSpeed()) : 0; // Horizontal movement
-        if (movementInput.x < 0.1f && movementInput.x > -0.1f) movementInput.x = 0; // Input deadzones
-        walkSpeed = (canMove && velocity.x != 0) ? movementInput.x : 0; // No walk speed when running at wall or cant move
+        
+        inputVelocity.x = canMove ? (smoothMovementInput.x * GetMovementSpeed()) : 0; // Horizontal movement
+        walkSpeed = (canMove && velocity.x != 0) ? smoothMovementInput.x : 0; // No walk speed when running at wall or cant move
 
         ApplyTopEdgeForce(); // Top edge detection (AFTER inputVelocity.x set)
         
@@ -162,8 +166,25 @@ public class CharacterController2D : MonoBehaviour {
 
     #region Movement
     Vector2 inputVelocity = Vector2.zero;
+    Vector2 smoothMovementInput = Vector2.zero;
 
     Vector2 lastPos = Vector2.zero;
+
+    private void SmoothInput() {
+        smoothMovementInput.y = movementInput.y;
+
+        if (instantDirectionChange && (movementInput.x > 0 && smoothMovementInput.x < 0) || (movementInput.x < 0 && smoothMovementInput.x > 0))
+            smoothMovementInput.x = 0; // Instant direction change
+
+        if (movementInput.x == 0 && smoothMovementInput.x != 0) {
+            float deceleration = ((smoothMovementInput.x > 0) ? movementDeceleration : -movementDeceleration) * Time.deltaTime;
+            if (smoothMovementInput.x - deceleration > 0 != smoothMovementInput.x > 0) smoothMovementInput.x = 0; // Dont decelerate in other direction
+            else smoothMovementInput.x -= deceleration; // Decelerate
+        }
+
+        smoothMovementInput.x += movementInput.x * movementAcceleration * Time.deltaTime; // Accelerate
+        smoothMovementInput.x = Mathf.Clamp(smoothMovementInput.x, -1, 1); // Clamp speed
+    }
 
     private float GetMovementSpeed() {
         if (isGrounded) return speedOnGround;
@@ -237,7 +258,7 @@ public class CharacterController2D : MonoBehaviour {
         dashTimer = 0;
         dashCooldownTimer = dashCooldown;
 
-        Vector2 dashDirection = movementInput.normalized;
+        Vector2 dashDirection = smoothMovementInput.normalized;
         if (dashDirection == Vector2.zero) dashDirection = (transform.localScale.x > 0) ? Vector2.right : Vector2.left;
 
         inputVelocity = Vector2.zero;
@@ -395,9 +416,9 @@ public class CharacterController2D : MonoBehaviour {
     }
 
     private void FaceInRightDirection() {
-        if (movementInput.x == 0) return;
+        if (smoothMovementInput.x == 0) return;
 
-        if ((transform.localScale.x > 0) != (movementInput.x > 0)) {
+        if ((transform.localScale.x > 0) != (smoothMovementInput.x > 0)) {
             transform.localScale = new Vector3(-transform.localScale.x, transform.localScale.y, transform.localScale.z);
         }
     }

@@ -12,7 +12,7 @@ public class CharacterInput : MonoBehaviour
     }
 
     void Update() {
-        controller.movementInput = new Vector2(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical")); // Get horizontal movement input
+        controller.movementInput = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical")); // Get horizontal movement input
         if (Input.GetButtonDown("Jump")) controller.OnJumpButton(); // Register jump button pressed
         if (Input.GetKeyDown(KeyCode.C)) controller.OnDashButton(); // Register dash button pressed
     }

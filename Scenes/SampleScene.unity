@@ -407,6 +407,8 @@ MonoBehaviour:
   groundcheckBoxOffset: {x: 0, y: -0.5032862}
   groundcheckBoxSize: {x: 0.77500004, y: 0.01}
   canMove: 1
+  movementAcceleration: 5
+  movementDeceleration: 7.5
   speedOnGround: 5
   apexSpeed: 7
   apexSpeedThreshold: 10
