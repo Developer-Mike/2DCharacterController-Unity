@@ -19,12 +19,16 @@ public class CharacterController2D : MonoBehaviour {
     public float movementAcceleration = 5;
     public float movementDeceleration = 7.5f;
     public float speedOnGround = 5;
+
+    [Header("Jump Apex")]
     public float apexSpeed = 7;
     public float apexSpeedThreshold = 10;
     public float apexZeroGravityThreshold = 0.4f;
+
+    [Header("External Forces")]
     public float externalForceFriction = 1.25f;
 
-    [Header("Anti Slide")]
+    [Header("Slopes")]
     public float slideTreshold;
     public float slideForce;
 
@@ -148,6 +152,9 @@ public class CharacterController2D : MonoBehaviour {
 
         Gizmos.color = Color.blue;
         DrawTopEdgeDebug();
+
+        Gizmos.color = Color.magenta;
+        DrawSlopeDebug();
     }
 
     #region Input
@@ -208,6 +215,16 @@ public class CharacterController2D : MonoBehaviour {
         rb.velocity = Vector2.zero;
     }
 
+    private void FaceInRightDirection() {
+        if (smoothMovementInput.x == 0) return;
+
+        if ((transform.localScale.x > 0) != (smoothMovementInput.x > 0)) {
+            transform.localScale = new Vector3(-transform.localScale.x, transform.localScale.y, transform.localScale.z);
+        }
+    }
+    #endregion
+
+    #region Slope
     void ReduceSliding() {
         // If not jumping
         if (inputVelocity.y > 0) return;
@@ -216,6 +233,11 @@ public class CharacterController2D : MonoBehaviour {
 
         // If slope is bigger than treshold (Slide down) or x input it not null (Stick to ground)
         if (Mathf.Abs(hit.normal.x) > slideTreshold || inputVelocity.x != 0) inputVelocity.y = -slideForce;
+    }
+
+    void DrawSlopeDebug() {
+        Vector2 origin = transform.position + Vector3.up * groundcheckBoxOffset.y * transform.localScale.y;
+        Gizmos.DrawLine(origin, origin + (Vector2.up * slideTreshold + Vector2.right) * 0.2f);
     }
     #endregion
 
@@ -416,6 +438,7 @@ public class CharacterController2D : MonoBehaviour {
     }
     #endregion
 
+    #region Checks
     private void SetSlipperyMaterial() {
         if (coll.sharedMaterial == null) {
             PhysicsMaterial2D physicsMaterial = new PhysicsMaterial2D("Slippery");
@@ -432,12 +455,5 @@ public class CharacterController2D : MonoBehaviour {
             Debug.LogWarning("Set Rigidbody2D's gravity scale to 0.", rb);
         }
     }
-
-    private void FaceInRightDirection() {
-        if (smoothMovementInput.x == 0) return;
-
-        if ((transform.localScale.x > 0) != (smoothMovementInput.x > 0)) {
-            transform.localScale = new Vector3(-transform.localScale.x, transform.localScale.y, transform.localScale.z);
-        }
-    }
+    #endregion
 }
