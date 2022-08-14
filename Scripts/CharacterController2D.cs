@@ -298,8 +298,8 @@ public class CharacterController2D : MonoBehaviour {
         jumpTimer = 0;
         inputVelocity.y = Mathf.Sqrt(jumpForce * -2f * gravity);
 
+        // If is wall jumping: add force in opposite direction to wall
         if (wasWallJumping || isWallJumping) {
-            print("uh");
             rb.AddForce(new Vector2((transform.localScale.x > 0 ? -1 : 1) * wallJumpAwayForce, 0), ForceMode2D.Impulse);
         }
 
