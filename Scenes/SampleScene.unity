@@ -825,6 +825,8 @@ MonoBehaviour:
   apexSpeedThreshold: 10
   apexZeroGravityThreshold: 0.4
   externalForceFriction: 1.5
+  slideTreshold: 0.2
+  slideForce: 5
   gravity: -19.62
   jumpForce: 2.5
   downGravityMultiplier: 1.25

@@ -24,6 +24,10 @@ public class CharacterController2D : MonoBehaviour {
     public float apexZeroGravityThreshold = 0.4f;
     public float externalForceFriction = 1.25f;
 
+    [Header("Anti Slide")]
+    public float slideTreshold;
+    public float slideForce;
+
     [Header("Jump")]
     public float gravity = -20;
     public float jumpForce = 2.5f;
@@ -68,7 +72,7 @@ public class CharacterController2D : MonoBehaviour {
 
     private void Update() {
         SmoothInput(); // Refresh smooth input
-
+        
         jumpTimer -= Time.deltaTime; // Reduce jump timer
 
         if (canDash) {
@@ -85,7 +89,7 @@ public class CharacterController2D : MonoBehaviour {
     private void FixedUpdate() {
         rb.velocity /= externalForceFriction; // Reduce external forces
 
-        Collider2D groundCollider = IsGrounded(); // Ground check
+        Collider2D groundCollider = CheckGrounded(); // Ground check
 
         if (isGrounded) {
             dashesLeft = dashesInAir; // Reset dashes left on grounded
@@ -110,6 +114,8 @@ public class CharacterController2D : MonoBehaviour {
         
         inputVelocity.x = canMove ? (smoothMovementInput.x * GetMovementSpeed()) : 0; // Horizontal movement
         walkSpeed = (canMove && velocity.x != 0) ? smoothMovementInput.x : 0; // No walk speed when running at wall or cant move
+
+        ReduceSliding();
 
         ApplyTopEdgeForce(); // Top edge detection (AFTER inputVelocity.x set)
         
@@ -201,18 +207,30 @@ public class CharacterController2D : MonoBehaviour {
         inputVelocity = Vector2.zero;
         rb.velocity = Vector2.zero;
     }
+
+    void ReduceSliding() {
+        // If not jumping
+        if (inputVelocity.y > 0) return;
+
+        RaycastHit2D hit = Physics2D.Raycast(transform.position, Vector2.down, Mathf.Infinity, groundLayer);
+
+        // If slope is bigger than treshold (Slide down) or x input it not null (Stick to ground)
+        if (Mathf.Abs(hit.normal.x) > slideTreshold || inputVelocity.x != 0) inputVelocity.y = -slideForce;
+    }
     #endregion
 
     #region Ground Check
     bool wasGrounded = false;
 
-    private Collider2D IsGrounded() {
+    private Collider2D CheckGrounded() {
         Collider2D groundCollider = Physics2D.OverlapBox((Vector2) coll.bounds.center + groundcheckBoxOffset, groundcheckBoxSize, 0, groundLayer);
 
         wasGrounded = isGrounded;
         isGrounded = groundCollider != null;
 
         if (!wasGrounded && isGrounded) groundEvent?.Invoke();
+        if (wasGrounded && !isGrounded && inputVelocity.y < 0) inputVelocity.y = 0; // Reset default velocity
+
         isFalling = !isGrounded && inputVelocity.y < 0;
 
         return groundCollider;
@@ -273,7 +291,7 @@ public class CharacterController2D : MonoBehaviour {
         float finalGravity = (inputVelocity.y < 0) ? gravity * downGravityMultiplier : gravity; // Faster drop
         inputVelocity.y += finalGravity * Time.fixedDeltaTime;
 
-        if (isGrounded && inputVelocity.y < 0) inputVelocity.y = -0.2f; // If grounded -> Dont apply force
+        if (isGrounded && inputVelocity.y < 0) inputVelocity.y = 0f; // If grounded -> Dont apply force
         else if (!isGrounded && inputVelocity.y < maxDropVelocity) inputVelocity.y = maxDropVelocity; // Cap Velocity
         else if (!isGrounded && inputVelocity.y > 0 && velocity.y <= 0) inputVelocity.y = 0f; // On top collision -> Bump back down
     }
