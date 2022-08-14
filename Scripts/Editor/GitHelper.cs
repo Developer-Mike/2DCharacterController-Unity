@@ -27,6 +27,10 @@ public class GitHelper : EditorWindow
             Push();
             Close();
         }
+
+        if (GUILayout.Button("Cancel")) {
+            Close();
+        }
     }
 
     void AddAll() {

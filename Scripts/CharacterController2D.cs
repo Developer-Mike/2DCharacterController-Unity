@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.Events;
 
 [RequireComponent(typeof(Rigidbody2D))]
-[RequireComponent(typeof(BoxCollider2D))]
+[RequireComponent(typeof(Collider2D))]
 public class CharacterController2D : MonoBehaviour {
     [Header("Ground Check")]
     public LayerMask groundLayer;
@@ -55,12 +55,12 @@ public class CharacterController2D : MonoBehaviour {
     public string platformTag = "Platform";
 
     Rigidbody2D rb;
-    BoxCollider2D boxCollider;
+    Collider2D coll;
 
     private void Awake() {
         // Init variables
         rb = GetComponent<Rigidbody2D>();
-        boxCollider = GetComponent<BoxCollider2D>();
+        coll = GetComponent<Collider2D>();
 
         SetSlipperyMaterial(); // Add Slippery Material
         CheckRigidbody();
@@ -121,7 +121,7 @@ public class CharacterController2D : MonoBehaviour {
     }
 
     private void OnValidate() {
-        boxCollider = GetComponent<BoxCollider2D>();
+        coll = GetComponent<Collider2D>();
 
         // Get Bounds
         if (automaticGroundcheckBox) SetGroundcheckParameters();
@@ -145,7 +145,7 @@ public class CharacterController2D : MonoBehaviour {
     }
 
     #region Input
-    public Vector2 movementInput;
+    [HideInInspector] public Vector2 movementInput;
     
     public void OnJumpButton() => jumpTimer = jumpReminderTime;
     public void OnDashButton() => dashTimer = dashReminderTime;
@@ -207,7 +207,7 @@ public class CharacterController2D : MonoBehaviour {
     bool wasGrounded = false;
 
     private Collider2D IsGrounded() {
-        Collider2D groundCollider = Physics2D.OverlapBox((Vector2) boxCollider.bounds.center + groundcheckBoxOffset, groundcheckBoxSize, 0, groundLayer);
+        Collider2D groundCollider = Physics2D.OverlapBox((Vector2) coll.bounds.center + groundcheckBoxOffset, groundcheckBoxSize, 0, groundLayer);
 
         wasGrounded = isGrounded;
         isGrounded = groundCollider != null;
@@ -219,12 +219,12 @@ public class CharacterController2D : MonoBehaviour {
     }
 
     private void SetGroundcheckParameters() {
-        groundcheckBoxOffset = Vector2.down * boxCollider.bounds.extents.y;
-        groundcheckBoxSize = new Vector2(boxCollider.bounds.extents.x * 2 - 0.025f, 0.01f);
+        groundcheckBoxOffset = Vector2.down * coll.bounds.extents.y;
+        groundcheckBoxSize = new Vector2(coll.bounds.extents.x * 2 - 0.025f, 0.01f);
     }
 
     private void DrawGroundcheckDebug() {
-        Gizmos.DrawWireCube(boxCollider.bounds.center + (Vector3)groundcheckBoxOffset, groundcheckBoxSize);
+        Gizmos.DrawWireCube(coll.bounds.center + (Vector3)groundcheckBoxOffset, groundcheckBoxSize);
     }
     #endregion
 
@@ -327,9 +327,9 @@ public class CharacterController2D : MonoBehaviour {
 
         Vector2 faceDirection = (transform.localScale.x > 0) ? Vector2.right : Vector2.left;
 
-        bool bottomCollision = Physics2D.Raycast(boxCollider.bounds.center + Vector3.up * bottomStepYOffset, faceDirection, stepDistance, groundLayer);
+        bool bottomCollision = Physics2D.Raycast(coll.bounds.center + Vector3.up * bottomStepYOffset, faceDirection, stepDistance, groundLayer);
         if (!bottomCollision) return false;
-        bool topCollision = Physics2D.Raycast(boxCollider.bounds.center + Vector3.up * (bottomStepYOffset + stepCheckDistance), faceDirection, stepDistance, groundLayer);
+        bool topCollision = Physics2D.Raycast(coll.bounds.center + Vector3.up * (bottomStepYOffset + stepCheckDistance), faceDirection, stepDistance, groundLayer);
         if (topCollision) return false;
         
         return true;
@@ -337,14 +337,14 @@ public class CharacterController2D : MonoBehaviour {
 
     private void SetStepCheckParameters() {
         stepCheckDistance = 0.1f;
-        stepDistance = boxCollider.bounds.extents.x + 0.05f;
-        bottomStepYOffset = -boxCollider.bounds.extents.y + 0.01f;
+        stepDistance = coll.bounds.extents.x + 0.05f;
+        bottomStepYOffset = -coll.bounds.extents.y + 0.01f;
         stepMoveForce = 1f;
     }
 
     private void DrawStepDebug() {
-        Gizmos.DrawLine(boxCollider.bounds.center + Vector3.up * bottomStepYOffset, boxCollider.bounds.center + Vector3.up * bottomStepYOffset + Vector3.right * stepDistance);
-        Gizmos.DrawLine(boxCollider.bounds.center + Vector3.up * (bottomStepYOffset + stepCheckDistance), boxCollider.bounds.center + Vector3.up * (bottomStepYOffset + stepCheckDistance) + Vector3.right * stepDistance);
+        Gizmos.DrawLine(coll.bounds.center + Vector3.up * bottomStepYOffset, coll.bounds.center + Vector3.up * bottomStepYOffset + Vector3.right * stepDistance);
+        Gizmos.DrawLine(coll.bounds.center + Vector3.up * (bottomStepYOffset + stepCheckDistance), coll.bounds.center + Vector3.up * (bottomStepYOffset + stepCheckDistance) + Vector3.right * stepDistance);
     }
     #endregion
 
@@ -372,9 +372,9 @@ public class CharacterController2D : MonoBehaviour {
     }
 
     private bool HasTopEdge(int direction) {
-        bool rightCollision = Physics2D.Raycast(boxCollider.bounds.center + Vector3.right * topEdgeXOffset * direction, Vector2.up, topEdgeDistance, groundLayer);
+        bool rightCollision = Physics2D.Raycast(coll.bounds.center + Vector3.right * topEdgeXOffset * direction, Vector2.up, topEdgeDistance, groundLayer);
         if (!rightCollision) return false;
-        bool leftCollision = Physics2D.Raycast(boxCollider.bounds.center + Vector3.right * (topEdgeXOffset - topEdgeCheckDistance) * direction, Vector2.up, topEdgeDistance, groundLayer);
+        bool leftCollision = Physics2D.Raycast(coll.bounds.center + Vector3.right * (topEdgeXOffset - topEdgeCheckDistance) * direction, Vector2.up, topEdgeDistance, groundLayer);
         if (leftCollision) return false;
 
         return true;
@@ -382,29 +382,29 @@ public class CharacterController2D : MonoBehaviour {
 
     private void SetTopEdgeParameters() {
         topEdgeCheckDistance = 0.15f;
-        topEdgeDistance = boxCollider.bounds.extents.y + 0.5f;
-        topEdgeXOffset = boxCollider.bounds.extents.x;
+        topEdgeDistance = coll.bounds.extents.y + 0.5f;
+        topEdgeXOffset = coll.bounds.extents.x;
         topEdgeMoveForce = 3f;
     }
 
     private void DrawTopEdgeDebug() {
         int direction = (transform.localScale.x > 0) ? 1 : -1;
 
-        Gizmos.DrawLine(boxCollider.bounds.center + Vector3.right * topEdgeXOffset * direction,
-            boxCollider.bounds.center + Vector3.right * topEdgeXOffset * direction + Vector3.up * topEdgeDistance);
+        Gizmos.DrawLine(coll.bounds.center + Vector3.right * topEdgeXOffset * direction,
+            coll.bounds.center + Vector3.right * topEdgeXOffset * direction + Vector3.up * topEdgeDistance);
 
-        Gizmos.DrawLine(boxCollider.bounds.center + Vector3.right * (topEdgeXOffset - topEdgeCheckDistance) * direction,
-            boxCollider.bounds.center + Vector3.right * (topEdgeXOffset - topEdgeCheckDistance) * direction + Vector3.up * topEdgeDistance);
+        Gizmos.DrawLine(coll.bounds.center + Vector3.right * (topEdgeXOffset - topEdgeCheckDistance) * direction,
+            coll.bounds.center + Vector3.right * (topEdgeXOffset - topEdgeCheckDistance) * direction + Vector3.up * topEdgeDistance);
     }
     #endregion
 
     private void SetSlipperyMaterial() {
-        if (boxCollider.sharedMaterial == null) {
+        if (coll.sharedMaterial == null) {
             PhysicsMaterial2D physicsMaterial = new PhysicsMaterial2D("Slippery");
             physicsMaterial.friction = 0;
 
-            boxCollider.sharedMaterial = physicsMaterial;
-        } else if (boxCollider.sharedMaterial.friction != 0) {
+            coll.sharedMaterial = physicsMaterial;
+        } else if (coll.sharedMaterial.friction != 0) {
             Debug.LogWarning("Physics material with friction applied. This could make the player stuck at walls.");
         }
     }
