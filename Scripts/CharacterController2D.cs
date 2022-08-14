@@ -39,6 +39,14 @@ public class CharacterController2D : MonoBehaviour {
     public float maxDropVelocity = -10;
     [Range(1, 10)] public int jumpsInAir = 1;
 
+    [Header("Wall Jump")]
+    public bool canWallJump = true;
+    public bool restoreFullJumps;
+    public Vector2 wallJumpCheckBoxOffset;
+    public Vector2 wallJumpCheckBoxSize;
+    public float wallJumpDownGravity;
+    public float wallJumpAwayForce;
+
     [Header("Dash")]
     public bool canDash = true;
     public float dashForce = 50;
@@ -119,10 +127,14 @@ public class CharacterController2D : MonoBehaviour {
         inputVelocity.x = canMove ? (smoothMovementInput.x * GetMovementSpeed()) : 0; // Horizontal movement
         walkSpeed = (canMove && velocity.x != 0) ? smoothMovementInput.x : 0; // No walk speed when running at wall or cant move
 
-        ReduceSliding();
+        CheckWallJumping(); // Check if wall jumping
+
+        SlideDown(); // Slide down slopes / Stick to ground
 
         ApplyTopEdgeForce(); // Top edge detection (AFTER inputVelocity.x set)
-        
+
+        ApplyWallJumpGravity(); // Slide down walls
+
         rb.MovePosition(rb.position + (GetFinalVelocity() + rb.velocity) * Time.fixedDeltaTime); // Apply velocity
 
         SetMovingPlatformOffset(); // Set new platform offset (AFTER applying velocity)
@@ -147,6 +159,9 @@ public class CharacterController2D : MonoBehaviour {
         Gizmos.color = Color.green;
         DrawGroundcheckDebug();
 
+        Gizmos.color = Color.yellow;
+        DrawWallJumpCheckDebug();
+
         Gizmos.color = Color.red;
         DrawStepDebug();
 
@@ -166,11 +181,15 @@ public class CharacterController2D : MonoBehaviour {
 
     #region Events and public values
     [HideInInspector] public float walkSpeed { get; private set; } = 0;
+    [HideInInspector] public bool isGrounded { get; private set; } = false;
     [HideInInspector] public bool isFalling { get; private set; } = false;
+    /*[HideInInspector]*/ public bool isWallJumping /*{ get; private set; }*/ = false;
+    [HideInInspector] public int jumpsLeft;
     [HideInInspector] public Vector2 velocity { get; private set; } = Vector2.zero;
 
     [HideInInspector] public UnityEvent jumpEvent;
     [HideInInspector] public UnityEvent groundEvent;
+    [HideInInspector] public UnityEvent wallGrabEvent;
     [HideInInspector] public UnityEvent dashEvent;
     [HideInInspector] public UnityEvent dashRechargedEvent;
     [HideInInspector] public UnityEvent stepEvent;
@@ -225,14 +244,14 @@ public class CharacterController2D : MonoBehaviour {
     #endregion
 
     #region Slope
-    void ReduceSliding() {
+    void SlideDown() {
         // If not jumping
         if (inputVelocity.y > 0) return;
 
         RaycastHit2D hit = Physics2D.Raycast(transform.position, Vector2.down, Mathf.Infinity, groundLayer);
 
         // If slope is bigger than treshold (Slide down) or x input it not null (Stick to ground)
-        if (Mathf.Abs(hit.normal.x) > slideTreshold || inputVelocity.x != 0) inputVelocity.y = -slideForce;
+        if (Mathf.Abs(hit.normal.x) > slideTreshold || (inputVelocity.x != 0 && isGrounded)) inputVelocity.y = -slideForce;
     }
 
     void DrawSlopeDebug() {
@@ -269,10 +288,8 @@ public class CharacterController2D : MonoBehaviour {
     #endregion
 
     #region Jump
-    bool isGrounded = false;
     const float jumpReminderTime = 0.1f;
     float jumpTimer = 0;
-    int jumpsLeft;
 
     private void Jump() {
         if (jumpsLeft <= 0) return;
@@ -281,7 +298,44 @@ public class CharacterController2D : MonoBehaviour {
         jumpTimer = 0;
         inputVelocity.y = Mathf.Sqrt(jumpForce * -2f * gravity);
 
+        if (wasWallJumping || isWallJumping) {
+            print("uh");
+            rb.AddForce(new Vector2((transform.localScale.x > 0 ? -1 : 1) * wallJumpAwayForce, 0), ForceMode2D.Impulse);
+        }
+
         jumpEvent?.Invoke();
+    }
+    #endregion
+
+    #region WallJump
+    bool wasWallJumping = false;
+
+    void CheckWallJumping() {
+        if (isGrounded) {
+            isWallJumping = false;
+            return;
+        }
+        
+        Collider2D wallCollider = Physics2D.OverlapBox((Vector2)coll.bounds.center + new Vector2((transform.localScale.x > 0 ? 1 : -1) * wallJumpCheckBoxOffset.x, wallJumpCheckBoxOffset.y), wallJumpCheckBoxSize, 0, groundLayer);
+
+        wasWallJumping = isWallJumping;
+        isWallJumping = wallCollider != null;
+
+        if (!wasWallJumping && isWallJumping) {
+            wallGrabEvent?.Invoke();
+
+            jumpsLeft = restoreFullJumps ? jumpsInAir : 1;
+        }
+    }
+
+    void ApplyWallJumpGravity() {
+        if (!isWallJumping || inputVelocity.y > 0) return;
+
+        inputVelocity.y = wallJumpDownGravity;
+    }
+
+    void DrawWallJumpCheckDebug() {
+        Gizmos.DrawWireCube((Vector2)coll.bounds.center + wallJumpCheckBoxOffset, wallJumpCheckBoxSize);
     }
     #endregion
 
