@@ -257,7 +257,7 @@ public class CharacterController2D : MonoBehaviour {
 
         // If is wall jumping: add force in opposite direction to wall
         if (wasWallJumping || isWallJumping) {
-            rb.AddForce(new Vector2((transform.localScale.x > 0 ? -1 : 1) * wallJumpSettings.wallJumpAwayForce, 0), ForceMode2D.Impulse);
+            rb.AddForce(new Vector2((transform.localScale.x > 0 ? -1 : 1) * wallJumpSettings.jumpAwayForce, 0), ForceMode2D.Impulse);
         }
 
         jumpEvent?.Invoke();
@@ -274,8 +274,8 @@ public class CharacterController2D : MonoBehaviour {
         }
         
         Collider2D wallCollider = Physics2D.OverlapBox(
-            (Vector2)coll.bounds.center + new Vector2((transform.localScale.x > 0 ? 1 : -1) * wallJumpSettings.wallJumpCheckBoxOffset.x, wallJumpSettings.wallJumpCheckBoxOffset.y),
-            wallJumpSettings.wallJumpCheckBoxSize, 0, groundCheckSettings.groundLayer
+            (Vector2)coll.bounds.center + new Vector2((transform.localScale.x > 0 ? 1 : -1) * wallJumpSettings.checkBoxOffset.x, wallJumpSettings.checkBoxOffset.y),
+            wallJumpSettings.checkBoxSize, 0, groundCheckSettings.groundLayer
         );
 
         wasWallJumping = isWallJumping;
@@ -291,11 +291,11 @@ public class CharacterController2D : MonoBehaviour {
     void ApplyWallJumpGravity() {
         if (!isWallJumping || inputVelocity.y > 0) return;
 
-        inputVelocity.y = wallJumpSettings.wallJumpDownGravity;
+        inputVelocity.y = wallJumpSettings.downGravity;
     }
 
     void DrawWallJumpCheckDebug() {
-        Gizmos.DrawWireCube((Vector2)coll.bounds.center + wallJumpSettings.wallJumpCheckBoxOffset, wallJumpSettings.wallJumpCheckBoxSize);
+        Gizmos.DrawWireCube((Vector2)coll.bounds.center + wallJumpSettings.checkBoxOffset, wallJumpSettings.checkBoxSize);
     }
     #endregion
 
@@ -310,13 +310,13 @@ public class CharacterController2D : MonoBehaviour {
         if (dashCooldownTimer > 0 || dashesLeft <= 0) return;
         dashesLeft--;
         dashTimer = 0;
-        dashCooldownTimer = dashSettings.dashCooldown;
+        dashCooldownTimer = dashSettings.cooldown;
 
         Vector2 dashDirection = smoothMovementInput.normalized;
         if (dashDirection == Vector2.zero) dashDirection = (transform.localScale.x > 0) ? Vector2.right : Vector2.left;
 
         inputVelocity = Vector2.zero;
-        rb.AddForce(dashDirection * dashSettings.dashForce, ForceMode2D.Impulse);
+        rb.AddForce(dashDirection * dashSettings.force, ForceMode2D.Impulse);
 
         dashEvent?.Invoke();
     }
@@ -519,17 +519,17 @@ public class CharacterController2D : MonoBehaviour {
     public class WallJumpSettings {
         public bool canWallJump = true;
         public bool restoreFullJumps = false;
-        public Vector2 wallJumpCheckBoxOffset;
-        public Vector2 wallJumpCheckBoxSize;
-        public float wallJumpDownGravity = -1;
-        public float wallJumpAwayForce = 5;
+        public Vector2 checkBoxOffset;
+        public Vector2 checkBoxSize;
+        public float downGravity = -1;
+        public float jumpAwayForce = 5;
     }
 
     [System.Serializable]
     public class DashSettings {
         public bool canDash = true;
-        public float dashForce = 50;
-        public float dashCooldown = 0.6f;
+        public float force = 50;
+        public float cooldown = 0.6f;
         [Range(1, 10)] public int dashesInAir = 1;
     }
 
