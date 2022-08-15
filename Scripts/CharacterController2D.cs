@@ -6,69 +6,16 @@ using UnityEngine.Events;
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(Collider2D))]
 public class CharacterController2D : MonoBehaviour {
-    [Header("Ground Check")]
-    public LayerMask groundLayer;
-    [Space]
-    public bool automaticGroundcheckBox = true;
-    public Vector2 groundcheckBoxOffset;
-    public Vector2 groundcheckBoxSize;
-
-    [Header("Movement")]
-    public bool canMove = true;
-    public bool instantDirectionChange = true;
-    public float movementAcceleration = 5;
-    public float movementDeceleration = 7.5f;
-    public float speedOnGround = 5;
-
-    [Header("Jump Apex")]
-    public float apexSpeed = 7;
-    public float apexSpeedThreshold = 10;
-    public float apexZeroGravityThreshold = 0.4f;
-
-    [Header("External Forces")]
-    public float externalForceFriction = 1.25f;
-
-    [Header("Slopes")]
-    public float slideTreshold;
-    public float slideForce;
-
-    [Header("Jump")]
-    public float gravity = -20;
-    public float jumpForce = 2.5f;
-    public float downGravityMultiplier = 1.25f;
-    public float maxDropVelocity = -10;
-    [Range(1, 10)] public int jumpsInAir = 1;
-
-    [Header("Wall Jump")]
-    public bool canWallJump = true;
-    public bool restoreFullJumps;
-    public Vector2 wallJumpCheckBoxOffset;
-    public Vector2 wallJumpCheckBoxSize;
-    public float wallJumpDownGravity;
-    public float wallJumpAwayForce;
-
-    [Header("Dash")]
-    public bool canDash = true;
-    public float dashForce = 50;
-    public float dashCooldown = 0.6f;
-    [Range(1, 10)] public int dashesInAir = 1;
-
-    [Header("Step")]
-    public bool automaticStepConfiguration = true;
-    public float bottomStepYOffset;
-    public float stepCheckDistance;
-    public float stepDistance;
-    public float stepMoveForce;
-
-    [Header("Top Edge Detection")]
-    public bool automaticTopEdgeConfiguration = true;
-    public float topEdgeXOffset;
-    public float topEdgeCheckDistance;
-    public float topEdgeDistance;
-    public float topEdgeMoveForce;
-
-    [Header("Platforms")]
-    public string platformTag = "Platform";
+    public GroundCheckSettings groundCheckSettings;
+    public MovementSettings movementSettings;
+    public ExternalForcesSettings externalForcesSettings;
+    public SlopeSettings slopeSettings;
+    public JumpSettings jumpSettings;
+    public WallJumpSettings wallJumpSettings;
+    public DashSettings dashSettings;
+    public StepSettings stepSettings;
+    public TopEdgeNudgeSettings topEdgeNudgeSettings;
+    public MovingPlatformsSettings movingPlatformsSettings;
 
     Rigidbody2D rb;
     Collider2D coll;
@@ -87,7 +34,7 @@ public class CharacterController2D : MonoBehaviour {
         
         jumpTimer -= Time.deltaTime; // Reduce jump timer
 
-        if (canDash) {
+        if (dashSettings.canDash) {
             if (dashCooldownTimer > 0 && dashCooldownTimer - Time.deltaTime <= 0) {
                 if (dashesLeft > 0) dashRechargedEvent?.Invoke();
                 else notifyDashRechargeOnGrounded = true;
@@ -99,18 +46,18 @@ public class CharacterController2D : MonoBehaviour {
     }
 
     private void FixedUpdate() {
-        rb.velocity /= externalForceFriction; // Reduce external forces
+        rb.velocity /= externalForcesSettings.externalForceFriction; // Reduce external forces
 
         Collider2D groundCollider = CheckGrounded(); // Ground check
 
         if (isGrounded) {
-            dashesLeft = dashesInAir; // Reset dashes left on grounded
+            dashesLeft = dashSettings.dashesInAir; // Reset dashes left on grounded
             if (notifyDashRechargeOnGrounded) { // Dash recharged event
                 notifyDashRechargeOnGrounded = false;
                 dashRechargedEvent?.Invoke();
             }
 
-            jumpsLeft = jumpsInAir; // Reset jumps left on grounded
+            jumpsLeft = jumpSettings.jumpsInAir; // Reset jumps left on grounded
         }
 
         CheckForMovingPlatform(groundCollider); // Moveable platform check
@@ -121,11 +68,11 @@ public class CharacterController2D : MonoBehaviour {
         
         ApplyStepForce(); // Apply step force (AFTER Gravity)
 
-        if (canMove && jumpTimer > 0) Jump(); // Jump
-        if (canMove && canDash && dashTimer > 0) Dash(); // Dash
+        if (movementSettings.canMove && jumpTimer > 0) Jump(); // Jump
+        if (movementSettings.canMove && dashSettings.canDash && dashTimer > 0) Dash(); // Dash
         
-        inputVelocity.x = canMove ? (smoothMovementInput.x * GetMovementSpeed()) : 0; // Horizontal movement
-        walkSpeed = (canMove && velocity.x != 0) ? smoothMovementInput.x : 0; // No walk speed when running at wall or cant move
+        inputVelocity.x = movementSettings.canMove ? (smoothMovementInput.x * GetMovementSpeed()) : 0; // Horizontal movement
+        walkSpeed = (movementSettings.canMove && velocity.x != 0) ? smoothMovementInput.x : 0; // No walk speed when running at wall or cant move
 
         CheckWallJumping(); // Check if wall jumping
 
@@ -146,13 +93,13 @@ public class CharacterController2D : MonoBehaviour {
         coll = GetComponent<Collider2D>();
 
         // Get Bounds
-        if (automaticGroundcheckBox) SetGroundcheckParameters();
+        if (groundCheckSettings.automaticCheckBox) SetGroundcheckParameters();
 
         // Get Step Settings
-        if (automaticStepConfiguration) SetStepCheckParameters();
+        if (stepSettings.automaticConfiguration) SetStepCheckParameters();
 
         // Get Top Edge Settings
-        if (automaticTopEdgeConfiguration) SetTopEdgeParameters();
+        if (topEdgeNudgeSettings.automaticConfiguration) SetTopEdgeParameters();
     }
 
     private void OnDrawGizmosSelected() {
@@ -180,11 +127,18 @@ public class CharacterController2D : MonoBehaviour {
     #endregion
 
     #region Events and public values
+    /// <summary>
+    /// Actual walk speed. Changes when near apex of jump.
+    /// </summary>
     [HideInInspector] public float walkSpeed { get; private set; } = 0;
     [HideInInspector] public bool isGrounded { get; private set; } = false;
     [HideInInspector] public bool isFalling { get; private set; } = false;
-    /*[HideInInspector]*/ public bool isWallJumping /*{ get; private set; }*/ = false;
+    [HideInInspector] public bool isWallJumping { get; private set; } = false;
+    [HideInInspector] public bool isOnMovingPlatform { get { return currentPlatform != null; } }
     [HideInInspector] public int jumpsLeft;
+    /// <summary>
+    /// Actual velocity (readonly). If you want to add external forces, use Rigidbody2D.AddForce
+    /// </summary>
     [HideInInspector] public Vector2 velocity { get; private set; } = Vector2.zero;
 
     [HideInInspector] public UnityEvent jumpEvent;
@@ -205,23 +159,23 @@ public class CharacterController2D : MonoBehaviour {
     private void SmoothInput() {
         smoothMovementInput.y = movementInput.y;
 
-        if (instantDirectionChange && (movementInput.x > 0 && smoothMovementInput.x < 0) || (movementInput.x < 0 && smoothMovementInput.x > 0))
+        if (movementSettings.instantDirectionChange && (movementInput.x > 0 && smoothMovementInput.x < 0) || (movementInput.x < 0 && smoothMovementInput.x > 0))
             smoothMovementInput.x = 0; // Instant direction change
 
         if (movementInput.x == 0 && smoothMovementInput.x != 0) {
-            float deceleration = ((smoothMovementInput.x > 0) ? movementDeceleration : -movementDeceleration) * Time.deltaTime;
+            float deceleration = ((smoothMovementInput.x > 0) ? movementSettings.movementDeceleration : -movementSettings.movementDeceleration) * Time.deltaTime;
             if (smoothMovementInput.x - deceleration > 0 != smoothMovementInput.x > 0) smoothMovementInput.x = 0; // Dont decelerate in other direction
             else smoothMovementInput.x -= deceleration; // Decelerate
         }
 
-        smoothMovementInput.x += movementInput.x * movementAcceleration * Time.deltaTime; // Accelerate
+        smoothMovementInput.x += movementInput.x * movementSettings.movementAcceleration * Time.deltaTime; // Accelerate
         smoothMovementInput.x = Mathf.Clamp(smoothMovementInput.x, -1, 1); // Clamp speed
     }
 
     private float GetMovementSpeed() {
-        if (isGrounded) return speedOnGround;
+        if (isGrounded) return movementSettings.speedOnGround;
 
-        return Mathf.Lerp(apexSpeed, speedOnGround, Mathf.Abs(inputVelocity.y) / apexSpeedThreshold); // Jump apex -> More Speed
+        return Mathf.Lerp(jumpSettings.apexSpeed, movementSettings.speedOnGround, Mathf.Abs(inputVelocity.y) / jumpSettings.apexSpeedThreshold); // Jump apex -> More Speed
     }
 
     private void CalculateRealVelocity() {
@@ -229,6 +183,9 @@ public class CharacterController2D : MonoBehaviour {
         lastPos = transform.position;
     }
 
+    /// <summary>
+    /// Reset whole velocity (Rigidbody2D.velocity included)
+    /// </summary>
     public void ResetVelocity() {
         inputVelocity = Vector2.zero;
         rb.velocity = Vector2.zero;
@@ -248,15 +205,15 @@ public class CharacterController2D : MonoBehaviour {
         // If not jumping
         if (inputVelocity.y > 0) return;
 
-        RaycastHit2D hit = Physics2D.Raycast(transform.position, Vector2.down, Mathf.Infinity, groundLayer);
+        RaycastHit2D hit = Physics2D.Raycast(transform.position, Vector2.down, Mathf.Infinity, groundCheckSettings.groundLayer);
 
         // If slope is bigger than treshold (Slide down) or x input it not null (Stick to ground)
-        if (Mathf.Abs(hit.normal.x) > slideTreshold || (inputVelocity.x != 0 && isGrounded)) inputVelocity.y = -slideForce;
+        if (Mathf.Abs(hit.normal.x) > slopeSettings.slideTreshold || (inputVelocity.x != 0 && isGrounded)) inputVelocity.y = -slopeSettings.slideForce;
     }
 
     void DrawSlopeDebug() {
-        Vector2 origin = transform.position + Vector3.up * groundcheckBoxOffset.y * transform.localScale.y;
-        Gizmos.DrawLine(origin, origin + (Vector2.up * slideTreshold + Vector2.right) * 0.2f);
+        Vector2 origin = transform.position + Vector3.up * groundCheckSettings.checkBoxOffset.y * transform.localScale.y;
+        Gizmos.DrawLine(origin, origin + (Vector2.up * slopeSettings.slideTreshold + Vector2.right) * 0.2f);
     }
     #endregion
 
@@ -264,7 +221,7 @@ public class CharacterController2D : MonoBehaviour {
     bool wasGrounded = false;
 
     private Collider2D CheckGrounded() {
-        Collider2D groundCollider = Physics2D.OverlapBox((Vector2) coll.bounds.center + groundcheckBoxOffset, groundcheckBoxSize, 0, groundLayer);
+        Collider2D groundCollider = Physics2D.OverlapBox((Vector2) coll.bounds.center + groundCheckSettings.checkBoxOffset, groundCheckSettings.checkBoxSize, 0, groundCheckSettings.groundLayer);
 
         wasGrounded = isGrounded;
         isGrounded = groundCollider != null;
@@ -278,12 +235,12 @@ public class CharacterController2D : MonoBehaviour {
     }
 
     private void SetGroundcheckParameters() {
-        groundcheckBoxOffset = Vector2.down * coll.bounds.extents.y;
-        groundcheckBoxSize = new Vector2(coll.bounds.extents.x * 2 - 0.025f, 0.01f);
+        groundCheckSettings.checkBoxOffset = Vector2.down * coll.bounds.extents.y;
+        groundCheckSettings.checkBoxSize = new Vector2(coll.bounds.extents.x * 2 - 0.025f, 0.01f);
     }
 
     private void DrawGroundcheckDebug() {
-        Gizmos.DrawWireCube(coll.bounds.center + (Vector3)groundcheckBoxOffset, groundcheckBoxSize);
+        Gizmos.DrawWireCube(coll.bounds.center + (Vector3)groundCheckSettings.checkBoxOffset, groundCheckSettings.checkBoxSize);
     }
     #endregion
 
@@ -296,11 +253,11 @@ public class CharacterController2D : MonoBehaviour {
 
         jumpsLeft--;
         jumpTimer = 0;
-        inputVelocity.y = Mathf.Sqrt(jumpForce * -2f * gravity);
+        inputVelocity.y = Mathf.Sqrt(jumpSettings.jumpForce * -2f * jumpSettings.gravity);
 
         // If is wall jumping: add force in opposite direction to wall
         if (wasWallJumping || isWallJumping) {
-            rb.AddForce(new Vector2((transform.localScale.x > 0 ? -1 : 1) * wallJumpAwayForce, 0), ForceMode2D.Impulse);
+            rb.AddForce(new Vector2((transform.localScale.x > 0 ? -1 : 1) * wallJumpSettings.wallJumpAwayForce, 0), ForceMode2D.Impulse);
         }
 
         jumpEvent?.Invoke();
@@ -316,7 +273,10 @@ public class CharacterController2D : MonoBehaviour {
             return;
         }
         
-        Collider2D wallCollider = Physics2D.OverlapBox((Vector2)coll.bounds.center + new Vector2((transform.localScale.x > 0 ? 1 : -1) * wallJumpCheckBoxOffset.x, wallJumpCheckBoxOffset.y), wallJumpCheckBoxSize, 0, groundLayer);
+        Collider2D wallCollider = Physics2D.OverlapBox(
+            (Vector2)coll.bounds.center + new Vector2((transform.localScale.x > 0 ? 1 : -1) * wallJumpSettings.wallJumpCheckBoxOffset.x, wallJumpSettings.wallJumpCheckBoxOffset.y),
+            wallJumpSettings.wallJumpCheckBoxSize, 0, groundCheckSettings.groundLayer
+        );
 
         wasWallJumping = isWallJumping;
         isWallJumping = wallCollider != null;
@@ -324,18 +284,18 @@ public class CharacterController2D : MonoBehaviour {
         if (!wasWallJumping && isWallJumping) {
             wallGrabEvent?.Invoke();
 
-            jumpsLeft = restoreFullJumps ? jumpsInAir : 1;
+            jumpsLeft = wallJumpSettings.restoreFullJumps ? jumpSettings.jumpsInAir : 1;
         }
     }
 
     void ApplyWallJumpGravity() {
         if (!isWallJumping || inputVelocity.y > 0) return;
 
-        inputVelocity.y = wallJumpDownGravity;
+        inputVelocity.y = wallJumpSettings.wallJumpDownGravity;
     }
 
     void DrawWallJumpCheckDebug() {
-        Gizmos.DrawWireCube((Vector2)coll.bounds.center + wallJumpCheckBoxOffset, wallJumpCheckBoxSize);
+        Gizmos.DrawWireCube((Vector2)coll.bounds.center + wallJumpSettings.wallJumpCheckBoxOffset, wallJumpSettings.wallJumpCheckBoxSize);
     }
     #endregion
 
@@ -350,13 +310,13 @@ public class CharacterController2D : MonoBehaviour {
         if (dashCooldownTimer > 0 || dashesLeft <= 0) return;
         dashesLeft--;
         dashTimer = 0;
-        dashCooldownTimer = dashCooldown;
+        dashCooldownTimer = dashSettings.dashCooldown;
 
         Vector2 dashDirection = smoothMovementInput.normalized;
         if (dashDirection == Vector2.zero) dashDirection = (transform.localScale.x > 0) ? Vector2.right : Vector2.left;
 
         inputVelocity = Vector2.zero;
-        rb.AddForce(dashDirection * dashForce, ForceMode2D.Impulse);
+        rb.AddForce(dashDirection * dashSettings.dashForce, ForceMode2D.Impulse);
 
         dashEvent?.Invoke();
     }
@@ -364,18 +324,18 @@ public class CharacterController2D : MonoBehaviour {
 
     #region Gravity
     private void ApplyGravity() {
-        float finalGravity = (inputVelocity.y < 0) ? gravity * downGravityMultiplier : gravity; // Faster drop
+        float finalGravity = (inputVelocity.y < 0) ? jumpSettings.gravity * jumpSettings.downGravityMultiplier : jumpSettings.gravity; // Faster drop
         inputVelocity.y += finalGravity * Time.fixedDeltaTime;
 
         if (isGrounded && inputVelocity.y < 0) inputVelocity.y = 0f; // If grounded -> Dont apply force
-        else if (!isGrounded && inputVelocity.y < maxDropVelocity) inputVelocity.y = maxDropVelocity; // Cap Velocity
+        else if (!isGrounded && inputVelocity.y < jumpSettings.maxDropVelocity) inputVelocity.y = jumpSettings.maxDropVelocity; // Cap Velocity
         else if (!isGrounded && inputVelocity.y > 0 && velocity.y <= 0) inputVelocity.y = 0f; // On top collision -> Bump back down
     }
 
     private Vector2 GetFinalVelocity() {
         Vector2 finalInputVelocity = inputVelocity;
 
-        if (inputVelocity.y > -apexZeroGravityThreshold && inputVelocity.y < apexZeroGravityThreshold)
+        if (inputVelocity.y > -jumpSettings.apexZeroGravityThreshold && inputVelocity.y < jumpSettings.apexZeroGravityThreshold)
             finalInputVelocity.y = 0; // Zero gravity at jump apex
 
         return finalInputVelocity;
@@ -387,7 +347,7 @@ public class CharacterController2D : MonoBehaviour {
     Vector2 currentPlatformOffset;
 
     private void CheckForMovingPlatform(Collider2D groundCollider) {
-        if (groundCollider != null && groundCollider.tag == platformTag) {
+        if (groundCollider != null && groundCollider.tag == movingPlatformsSettings.platformTag) {
             if (currentPlatform == null) {
                 currentPlatform = groundCollider.transform;
                 currentPlatformOffset = transform.position - currentPlatform.position;
@@ -412,7 +372,7 @@ public class CharacterController2D : MonoBehaviour {
     private void ApplyStepForce() {
         if (CanStep()) {
             stepEvent?.Invoke();
-            inputVelocity.y = stepMoveForce;
+            inputVelocity.y = stepSettings.moveForce;
         }
     }
 
@@ -421,24 +381,24 @@ public class CharacterController2D : MonoBehaviour {
 
         Vector2 faceDirection = (transform.localScale.x > 0) ? Vector2.right : Vector2.left;
 
-        bool bottomCollision = Physics2D.Raycast(coll.bounds.center + Vector3.up * bottomStepYOffset, faceDirection, stepDistance, groundLayer);
+        bool bottomCollision = Physics2D.Raycast(coll.bounds.center + Vector3.up * stepSettings.bottomYOffset, faceDirection, stepSettings.sideDistance, groundCheckSettings.groundLayer);
         if (!bottomCollision) return false;
-        bool topCollision = Physics2D.Raycast(coll.bounds.center + Vector3.up * (bottomStepYOffset + stepCheckDistance), faceDirection, stepDistance, groundLayer);
+        bool topCollision = Physics2D.Raycast(coll.bounds.center + Vector3.up * (stepSettings.bottomYOffset + stepSettings.secondCheckDistance), faceDirection, stepSettings.sideDistance, groundCheckSettings.groundLayer);
         if (topCollision) return false;
         
         return true;
     }
 
     private void SetStepCheckParameters() {
-        stepCheckDistance = 0.1f;
-        stepDistance = coll.bounds.extents.x + 0.05f;
-        bottomStepYOffset = -coll.bounds.extents.y + 0.01f;
-        stepMoveForce = 1f;
+        stepSettings.secondCheckDistance = 0.1f;
+        stepSettings.sideDistance = coll.bounds.extents.x + 0.05f;
+        stepSettings.bottomYOffset = -coll.bounds.extents.y + 0.01f;
+        stepSettings.moveForce = 1f;
     }
 
     private void DrawStepDebug() {
-        Gizmos.DrawLine(coll.bounds.center + Vector3.up * bottomStepYOffset, coll.bounds.center + Vector3.up * bottomStepYOffset + Vector3.right * stepDistance);
-        Gizmos.DrawLine(coll.bounds.center + Vector3.up * (bottomStepYOffset + stepCheckDistance), coll.bounds.center + Vector3.up * (bottomStepYOffset + stepCheckDistance) + Vector3.right * stepDistance);
+        Gizmos.DrawLine(coll.bounds.center + Vector3.up * stepSettings.bottomYOffset, coll.bounds.center + Vector3.up * stepSettings.bottomYOffset + Vector3.right * stepSettings.sideDistance);
+        Gizmos.DrawLine(coll.bounds.center + Vector3.up * (stepSettings.bottomYOffset + stepSettings.secondCheckDistance), coll.bounds.center + Vector3.up * (stepSettings.bottomYOffset + stepSettings.secondCheckDistance) + Vector3.right * stepSettings.sideDistance);
     }
     #endregion
 
@@ -455,7 +415,7 @@ public class CharacterController2D : MonoBehaviour {
                 break;
         }
 
-        inputVelocity.x += -GetTopEdgeDirection() * topEdgeMoveForce;
+        inputVelocity.x += -GetTopEdgeDirection() * topEdgeNudgeSettings.nudgeForce;
     }
 
     private int GetTopEdgeDirection() {
@@ -466,29 +426,29 @@ public class CharacterController2D : MonoBehaviour {
     }
 
     private bool HasTopEdge(int direction) {
-        bool rightCollision = Physics2D.Raycast(coll.bounds.center + Vector3.right * topEdgeXOffset * direction, Vector2.up, topEdgeDistance, groundLayer);
+        bool rightCollision = Physics2D.Raycast(coll.bounds.center + Vector3.right * topEdgeNudgeSettings.xOffset * direction, Vector2.up, topEdgeNudgeSettings.topDistance, groundCheckSettings.groundLayer);
         if (!rightCollision) return false;
-        bool leftCollision = Physics2D.Raycast(coll.bounds.center + Vector3.right * (topEdgeXOffset - topEdgeCheckDistance) * direction, Vector2.up, topEdgeDistance, groundLayer);
+        bool leftCollision = Physics2D.Raycast(coll.bounds.center + Vector3.right * (topEdgeNudgeSettings.xOffset - topEdgeNudgeSettings.secondCheckDistance) * direction, Vector2.up, topEdgeNudgeSettings.topDistance, groundCheckSettings.groundLayer);
         if (leftCollision) return false;
 
         return true;
     }
 
     private void SetTopEdgeParameters() {
-        topEdgeCheckDistance = 0.15f;
-        topEdgeDistance = coll.bounds.extents.y + 0.5f;
-        topEdgeXOffset = coll.bounds.extents.x;
-        topEdgeMoveForce = 3f;
+        topEdgeNudgeSettings.secondCheckDistance = 0.15f;
+        topEdgeNudgeSettings.topDistance = coll.bounds.extents.y + 0.5f;
+        topEdgeNudgeSettings.xOffset = coll.bounds.extents.x;
+        topEdgeNudgeSettings.nudgeForce = 3f;
     }
 
     private void DrawTopEdgeDebug() {
         int direction = (transform.localScale.x > 0) ? 1 : -1;
 
-        Gizmos.DrawLine(coll.bounds.center + Vector3.right * topEdgeXOffset * direction,
-            coll.bounds.center + Vector3.right * topEdgeXOffset * direction + Vector3.up * topEdgeDistance);
+        Gizmos.DrawLine(coll.bounds.center + Vector3.right * topEdgeNudgeSettings.xOffset * direction,
+            coll.bounds.center + Vector3.right * topEdgeNudgeSettings.xOffset * direction + Vector3.up * topEdgeNudgeSettings.topDistance);
 
-        Gizmos.DrawLine(coll.bounds.center + Vector3.right * (topEdgeXOffset - topEdgeCheckDistance) * direction,
-            coll.bounds.center + Vector3.right * (topEdgeXOffset - topEdgeCheckDistance) * direction + Vector3.up * topEdgeDistance);
+        Gizmos.DrawLine(coll.bounds.center + Vector3.right * (topEdgeNudgeSettings.xOffset - topEdgeNudgeSettings.secondCheckDistance) * direction,
+            coll.bounds.center + Vector3.right * (topEdgeNudgeSettings.xOffset - topEdgeNudgeSettings.secondCheckDistance) * direction + Vector3.up * topEdgeNudgeSettings.topDistance);
     }
     #endregion
 
@@ -508,6 +468,92 @@ public class CharacterController2D : MonoBehaviour {
         if (rb.gravityScale != 0) {
             Debug.LogWarning("Set Rigidbody2D's gravity scale to 0.", rb);
         }
+    }
+    #endregion
+
+    #region SettingsClasses
+    [System.Serializable]
+    public class GroundCheckSettings {
+        public LayerMask groundLayer;
+        [Space]
+        public bool automaticCheckBox = false;
+        public Vector2 checkBoxOffset;
+        public Vector2 checkBoxSize;
+    }
+
+    [System.Serializable]
+    public class MovementSettings {
+        public bool canMove = true;
+        public bool instantDirectionChange = true;
+        public float movementAcceleration = 5;
+        public float movementDeceleration = 7.5f;
+        public float speedOnGround = 5;
+    }
+
+    [System.Serializable]
+    public class ExternalForcesSettings {
+        public float externalForceFriction = 1.5f;
+    }
+
+    [System.Serializable]
+    public class SlopeSettings {
+        public float slideTreshold = 0.2f;
+        public float slideForce = 5;
+    }
+
+    [System.Serializable]
+    public class JumpSettings {
+        public float gravity = -19.62f;
+        public float jumpForce = 2.5f;
+        public float downGravityMultiplier = 1.25f;
+        public float maxDropVelocity = -10;
+        [Range(1, 10)] public int jumpsInAir = 1;
+
+        [Header("Jump Apex")]
+        public float apexSpeed = 7;
+        public float apexSpeedThreshold = 10;
+        public float apexZeroGravityThreshold = 0.4f;
+    }
+
+    [System.Serializable]
+    public class WallJumpSettings {
+        public bool canWallJump = true;
+        public bool restoreFullJumps = false;
+        public Vector2 wallJumpCheckBoxOffset;
+        public Vector2 wallJumpCheckBoxSize;
+        public float wallJumpDownGravity = -1;
+        public float wallJumpAwayForce = 5;
+    }
+
+    [System.Serializable]
+    public class DashSettings {
+        public bool canDash = true;
+        public float dashForce = 50;
+        public float dashCooldown = 0.6f;
+        [Range(1, 10)] public int dashesInAir = 1;
+    }
+
+    [System.Serializable]
+    public class StepSettings {
+        public bool automaticConfiguration = false;
+        public float bottomYOffset = -0.49f;
+        public float secondCheckDistance = 0.1f;
+        public float sideDistance = 0.3f;
+        public float moveForce = 1;
+    }
+
+    [System.Serializable]
+    public class TopEdgeNudgeSettings {
+        public bool automaticConfiguration = false;
+        public float xOffset = 0.25f;
+        public float secondCheckDistance = 0.125f;
+        public float topDistance = 0.55f;
+        public float nudgeForce = 3;
+    }
+
+    [System.Serializable]
+    public class MovingPlatformsSettings {
+        public string platformTag = "Platform";
     }
     #endregion
 }
