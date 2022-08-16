@@ -26,6 +26,7 @@ public class CharacterAnimator : MonoBehaviour
     private void Update() {
         anim.SetBool("isWalking", controller.walkSpeed != 0);
         anim.SetBool("isFalling", controller.isFalling);
+        anim.SetBool("isWallSliding", controller.isWallJumping);
     }
 
     void OnJump() {

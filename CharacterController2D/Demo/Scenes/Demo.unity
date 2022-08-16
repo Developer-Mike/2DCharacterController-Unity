@@ -949,27 +949,29 @@ MonoBehaviour:
   wallJumpSettings:
     canWallJump: 1
     restoreFullJumps: 0
-    wallJumpCheckBoxOffset: {x: 0.25, y: 0.2}
-    wallJumpCheckBoxSize: {x: 0.05, y: 0.35}
-    wallJumpDownGravity: -1
-    wallJumpAwayForce: 5
+    checkBoxOffset: {x: 0.25, y: 0.2}
+    checkBoxSize: {x: 0.075, y: 0.3}
+    downGravity: -1
+    jumpAwayForce: 5
   dashSettings:
     canDash: 1
-    dashForce: 50
-    dashCooldown: 0.6
+    force: 50
+    cooldown: 0.6
     dashesInAir: 1
+  stepSettings:
+    automaticConfiguration: 0
+    bottomYOffset: -0.49
+    secondCheckDistance: 0.1
+    sideDistance: 0.3
+    moveForce: 1
+  topEdgeNudgeSettings:
+    automaticConfiguration: 0
+    xOffset: 0.25
+    secondCheckDistance: 0.125
+    topDistance: 0.55
+    nudgeForce: 3
   movingPlatformsSettings:
     platformTag: Platform
-  automaticStepConfiguration: 0
-  bottomStepYOffset: -0.49
-  stepCheckDistance: 0.1
-  stepDistance: 0.3
-  stepMoveForce: 1
-  automaticTopEdgeConfiguration: 0
-  topEdgeXOffset: 0.25
-  topEdgeCheckDistance: 0.125
-  topEdgeDistance: 0.55
-  topEdgeMoveForce: 3
   movementInput: {x: 0, y: 0}
   jumpsLeft: 0
   jumpEvent:
